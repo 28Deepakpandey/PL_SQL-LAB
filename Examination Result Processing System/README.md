@@ -102,20 +102,15 @@ END;
 /
 
 
-## Step 6: Procedure — process_results
-
-**Purpose:**  
-Automate result computation for all students.
-
-### 📝 Steps inside the procedure
-1. 🔄 Loop through each student using a **cursor**.  
-2. 📊 Fetch **total marks obtained** by that student.  
-3. 📚 Calculate **maximum possible marks**.  
-4. 🧮 Compute **percentage = (total_obtained / total_max) * 100**.  
-5. 🏷️ Call **calculate_grade** function for grade assignment.  
-6. ✔️ Determine **PASS/FAIL** using percentage.  
-7. 🗂 Insert computed result into **results** table.  
-8. ⚠️ Handle exceptions like division by zero or missing data.  
+## 🛠️ Step 6: Procedure — process_results
+- 🔄 Loop through each student using a **cursor**  
+- 📊 Fetch **total marks obtained** by that student  
+- 📚 Calculate **maximum possible marks**  
+- 🧮 Compute **percentage = (total_obtained / total_max) * 100**  
+- 🏷️ Call **calculate_grade** function for grade assignment  
+- ✔️ Determine **PASS/FAIL** using percentage  
+- 🗂 Insert computed result into **results** table  
+- ⚠️ Handle exceptions like division by zero or missing data  
 
 ---
 
@@ -123,64 +118,51 @@ Automate result computation for all students.
 - 🔄 Cursor iteration  
 - ➕ Aggregation (`SUM`)  
 - 📞 Function calling inside procedure  
-- ⚠️ Exception handling 
+- ⚠️ Exception handling  
 
+---
 
-## Step 7: Procedure — generate_rank
-
-**Purpose:**  
-Assign ranks to students based on total marks.
-
-**Logic:**
-- Open a cursor sorted by `total_marks DESC`.  
-- Assign `rank = 1`, increment for each record.  
-- Update the `results` table accordingly.  
+## 🛠️ Step 7: Procedure — generate_rank
+- 🎯 Assign ranks to students based on **total marks**  
+- 📂 Open a **cursor** sorted by `total_marks DESC`  
+- 🔢 Assign `rank = 1`, increment for each record  
+- 🗂 Update the **results** table accordingly  
 
 ✅ **Concept Used:**  
-Explicit Cursor, Sequential Update, Ordered Ranking.  
+- 📌 Explicit Cursor  
+- 🔄 Sequential Update  
+- 📊 Ordered Ranking  
 
 ---
 
 ## 🧩 Step 8: View — view_results
+- 🎯 **Purpose:** Create a read-only display combining `students` and `results` tables  
+- 📑 **Displayed Columns:**  
+  - 🏆 rank  
+  - 👤 student_name  
+  - 📊 total_marks  
+  - 🧮 percentage  
+  - 🏷️ grade  
+  - ✔️ status  
+- ✅ **Advantage:** Makes result publishing easier — a single query can display all final results neatly  
 
-**Purpose:**  
-Create a read-only display combining `students` and `results` tables.  
-
-**Displayed Columns:**  
-- rank  
-- student_name  
-- total_marks  
-- percentage  
-- grade  
-- status  
-
-✅ **Advantage:**  
-Makes result publishing easier — a single query can display all final results neatly.  
 
 ## 🧩 Step 9: Data Entry Procedures
-
-1️⃣ **insert_student**  
-Simplifies inserting a student record with validation and commit.  
-
-2️⃣ **insert_subject**  
-Adds a new subject with max marks.  
-
-3️⃣ **insert_mark**  
-Adds marks for each student-subject combination.  
+- 👤 **insert_student** → Simplifies inserting a student record with validation and commit  
+- 📘 **insert_subject** → Adds a new subject with max marks  
+- ✏️ **insert_mark** → Adds marks for each student-subject combination  
 
 ✅ **Benefit:**  
-Encapsulation of `INSERT` logic improves data safety and code reusability.  
+Encapsulation of `INSERT` logic improves data safety and code reusability  
 
 ---
 
 ## 🧪 Step 9: Testing Steps
-
-1️⃣ **Insert Sample Data**  
-Use the provided block or interactive input (`&student_id`, etc.) to add students, subjects, and marks.  
-
-2️⃣ **Test Function**  
+- 🗂️ **Insert Sample Data** → Use the provided block or interactive input (`&student_id`, etc.) to add students, subjects, and marks  
+- 🧪 **Test Function**  
 ```sql
 SELECT calculate_grade(82) FROM dual;
+
 
 3️⃣ Run Result Processing
 BEGIN
@@ -203,38 +185,24 @@ SELECT * FROM view_results;
 | 3    | Anita Verma   | 205         | 68.3       | C     | PASS   |
 
 
-## 🧩 Step 10: Trigger (Optional Enhancement)
+---
 
-You can add a trigger to automatically re-run result processing whenever marks are updated:
+## 🛡️ Step 10: Exception Handling
+- ⚙️ Handled in all procedures to ensure smooth execution  
+- ❌ **NO_DATA_FOUND** → Missing marks  
+- ➗ **ZERO_DIVIDE** → Incorrect max marks  
+- 🛑 **OTHERS** → Catch-all for unexpected errors  
 
-```sql
-CREATE OR REPLACE TRIGGER trg_auto_result
-AFTER INSERT OR UPDATE ON marks
-BEGIN
-    process_results;
-    generate_rank;
-END;
-/
-## 🛡️ Step 11: Exception Handling
-
-Handled in all procedures to ensure smooth execution:
-
-- **NO_DATA_FOUND** → Missing marks  
-- **ZERO_DIVIDE** → Incorrect max marks  
-- **OTHERS** → Catch-all for unexpected errors  
-
-Displayed using:
-
+📢 Displayed using:  
 ```sql
 DBMS_OUTPUT.PUT_LINE('Error occurred: ' || SQLERRM);
 
 
-## Step 12: Verification Queries
-
-| Purpose              | Query                   |
-|----------------------|-------------------------|
-| View Students        | SELECT * FROM students; |
-| View Subjects        | SELECT * FROM subjects; |
-| View Marks           | SELECT * FROM marks;    |
-| View Processed Results | SELECT * FROM results; |
-| Final Published View | SELECT * FROM view_results; |
+## 🧩 Step 11: Verification Queries
+- 🎯 **Purpose:** Run quick checks to validate data and results  
+- 📑 **Queries:**  
+  - 👤 View Students → `SELECT * FROM students;`  
+  - 📘 View Subjects → `SELECT * FROM subjects;`  
+  - ✏️ View Marks → `SELECT * FROM marks;`  
+  - 📊 View Processed Results → `SELECT * FROM results;`  
+  - 🏆 Final Published View → `SELECT * FROM view_results;`  

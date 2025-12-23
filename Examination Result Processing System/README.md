@@ -81,25 +81,6 @@ Encapsulate grade calculation logic for reusability.
 **Usage:**  
 Called inside the `process_results` procedure to assign grades automatically.
 
-```sql
-CREATE OR REPLACE FUNCTION calculate_grade(p_percentage NUMBER)
-RETURN CHAR IS
-    v_grade CHAR(2);
-BEGIN
-    IF p_percentage >= 90 THEN
-        v_grade := 'A';
-    ELSIF p_percentage >= 75 THEN
-        v_grade := 'B';
-    ELSIF p_percentage >= 60 THEN
-        v_grade := 'C';
-    ELSIF p_percentage >= 40 THEN
-        v_grade := 'D';
-    ELSE
-        v_grade := 'F';
-    END IF;
-    RETURN v_grade;
-END;
-/
 
 
 ## 🛠️ Step 6: Procedure — process_results
@@ -159,8 +140,8 @@ Encapsulation of `INSERT` logic improves data safety and code reusability
 
 ## 🧪 Step 9: Testing Steps
 - 🗂️ **Insert Sample Data** → Use the provided block or interactive input (`&student_id`, etc.) to add students, subjects, and marks  
-- 🧪 **Test Function**  
-```sql
+- 🧪 **Test Function**
+- sql
 SELECT calculate_grade(82) FROM dual;
 
 
@@ -194,7 +175,7 @@ SELECT * FROM view_results;
 - 🛑 **OTHERS** → Catch-all for unexpected errors  
 
 📢 Displayed using:  
-```sql
+``sql
 DBMS_OUTPUT.PUT_LINE('Error occurred: ' || SQLERRM);
 
 

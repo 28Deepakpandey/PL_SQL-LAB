@@ -30,8 +30,7 @@ CREATE TABLE customers (
 CREATE TABLE accounts (
     account_id   NUMBER PRIMARY KEY,
     customer_id  NUMBER NOT NULL,
-    account_type VARCHAR2(20) 
-        CHECK (account_type IN ('SAVINGS', 'CURRENT')),
+    account_type VARCHAR2(20),
     balance      NUMBER(12,2) DEFAULT 0 CHECK (balance >= 0),
     created_date DATE DEFAULT SYSDATE,
 
@@ -44,8 +43,7 @@ CREATE TABLE accounts (
 CREATE TABLE transactions (
     transaction_id   NUMBER PRIMARY KEY,
     account_id       NUMBER NOT NULL,
-    transaction_type VARCHAR2(20)
-        CHECK (transaction_type IN ('DEPOSIT', 'WITHDRAW')),
+    transaction_type VARCHAR2(20),
     amount           NUMBER(12,2) CHECK (amount > 0),
     transaction_date DATE DEFAULT SYSDATE,
     status           VARCHAR2(20)
@@ -109,19 +107,34 @@ CREATE OR REPLACE PROCEDURE deposit_money(
     p_amount     IN NUMBER
 ) AS
 BEGIN
+    -- 1️ Validate amount
+    IF p_amount <= 0 THEN
+        INSERT INTO transactions (
+            transaction_id, account_id, transaction_type, amount, transaction_date, status
+        )
+        VALUES (
+            seq_transaction.NEXTVAL, p_account_id, 'DEPOSIT', p_amount, SYSDATE, 'FAILED'
+        );
+        DBMS_OUTPUT.PUT_LINE('Deposit amount must be greater than zero.');
+        DBMS_OUTPUT.PUT_LINE('***Deposit failed***');
+        RETURN; -- exit the procedure
+    END IF;
+
+    -- 2️ Update account
     UPDATE accounts
     SET balance = balance + p_amount
     WHERE account_id = p_account_id;
 
-    log_transaction(p_account_id, 'DEPOSIT', p_amount, 'SUCCESS');
-    DBMS_OUTPUT.PUT_LINE('Deposit successful.');
-EXCEPTION
-    WHEN OTHERS THEN
-        -- Rollback ensures atomicity
-        ROLLBACK;
-        INSERT INTO transactions (transaction_id, account_id, transaction_type, amount, transaction_date, status)
-        VALUES (seq_transaction.NEXTVAL, p_account_id, 'DEPOSIT', p_amount, SYSDATE, 'FAILED');
+    -- 3️ Check if account exists
+    IF SQL%ROWCOUNT = 0 THEN
+        
+        DBMS_OUTPUT.PUT_LINE('Account does not exist.');
         DBMS_OUTPUT.PUT_LINE('***Deposit failed***');
+        RETURN; -- exit procedure
+    END IF;
+
+    -- 4 Success
+    DBMS_OUTPUT.PUT_LINE('Deposit successful.');
 END;
 /
 
@@ -143,7 +156,7 @@ BEGIN
         SET balance = balance - p_amount
         WHERE account_id = p_account_id;
 
-        log_transaction(p_account_id, 'WITHDRAW', p_amount, 'SUCCESS');
+        -- log_transaction(p_account_id, 'WITHDRAW', p_amount, 'SUCCESS');
         DBMS_OUTPUT.PUT_LINE('Withdrawal successful.');
     END IF;
 END;
@@ -177,8 +190,6 @@ BEGIN
   END IF;
 END;
 /
-
-
 
 
 -- -- “Prevent Negative Balance” Trigger
@@ -304,5 +315,229 @@ END;
 -- --6.View transaction history:
 BEGIN
   view_transaction_history(&p_account_id);
+END;
+/
+
+
+
+-- ********** test useing direct VALUES
+-- 🧪 TEST CASE 1: Create Customers
+-- Expected: Customers inserted, IDs auto-generated
+BEGIN
+  create_customer('Alice', 'New York', '1111111111', 'alice@mail.com');
+  create_customer('Bob', 'London', '2222222222', 'bob@mail.com');
+END;
+/
+SELECT * FROM customers;
+
+
+-- 🧪 TEST CASE 2: Open Accounts
+-- Expected: Accounts linked to customers
+BEGIN
+  open_account(1001, 'SAVINGS', 5000);
+  open_account(1002, 'CURRENT', 3000);
+END;
+/
+SELECT * FROM accounts;
+
+-- 🧪 TEST CASE 3: Deposit Money
+-- Expected: Balance increases + transaction logged by trigger
+BEGIN
+  deposit_money(1001, 2000);
+END;
+/
+SELECT balance FROM accounts WHERE account_id = 1001;
+SELECT * FROM transactions WHERE account_id = 1001;
+
+-- 🧪 TEST CASE 4: Withdraw Money (SUCCESS)
+-- Expected: Balance decreases + transaction logged
+BEGIN
+  withdraw_money(1001, 1000);
+END;
+/
+SELECT balance FROM accounts WHERE account_id = 1001;
+SELECT * FROM transactions WHERE account_id = 1001;
+
+-- 🧪 TEST CASE 5: Withdraw Money (INSUFFICIENT FUNDS)
+-- Expected: No balance change, FAILED transaction logged
+BEGIN
+  withdraw_money(1002, 10000);
+END;
+/
+SELECT balance FROM accounts WHERE account_id = 1002;
+SELECT * FROM transactions WHERE account_id = 1002;
+
+-- 🧪 TEST CASE 6: Check Balance Function
+-- Expected: Correct balance returned
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('Balance: ' || get_balance(1001));
+END;
+/
+
+-- 🧪 TEST CASE 7: Trigger Test (Direct UPDATE)
+-- Expected: Transaction auto-logged by trigger
+UPDATE accounts
+SET balance = balance + 500
+WHERE account_id = 1001;
+SELECT * FROM transactions WHERE account_id = 1001 ORDER BY transaction_id DESC;
+
+-- 🧪 TEST CASE 8: Negative Balance Prevention Trigger
+-- Expected: ERROR raised, update blocked
+UPDATE accounts
+SET balance = -100
+WHERE account_id = 1001;
+
+-- 🧪 TEST CASE 9: Money Transfer (SUCCESS)
+-- Expected:
+    -- Deduct from source
+    -- Add to destination
+    -- Transactions logged
+BEGIN
+  transfer_money(1001, 1002, 500);
+END;
+/
+SELECT account_id, balance FROM accounts;
+SELECT * FROM transactions ORDER BY transaction_id;
+
+-- 🧪 TEST CASE 10: Money Transfer (FAILURE)
+-- Expected: No balances changed
+BEGIN
+  transfer_money(1002, 1001, 99999);
+END;
+/
+SELECT account_id, balance FROM accounts;
+
+
+-- 🧪 TEST CASE 11: View Transaction History
+-- Expected: Formatted transaction list
+BEGIN
+  view_transaction_history(1001);
+END;
+/
+
+-- 🧪 TEST CASE 12: Invalid Account ID
+-- Expected: NO_DATA_FOUND error
+BEGIN
+  deposit_money(9999, 100);
+END;
+/
+
+
+-- FINAL VALIDATION QUERIES
+SELECT * FROM customers;
+SELECT * FROM accounts;
+SELECT * FROM transactions ORDER BY transaction_id;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- Drop object created in this project******************
+
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TRIGGER trg_auto_log_transaction';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TRIGGER trg_no_negative_balance';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP PROCEDURE transfer_money';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP PROCEDURE view_transaction_history';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP PROCEDURE withdraw_money';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP PROCEDURE deposit_money';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP PROCEDURE log_transaction';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP PROCEDURE open_account';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP PROCEDURE create_customer';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP FUNCTION get_balance';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TABLE transactions CASCADE CONSTRAINTS';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TABLE accounts CASCADE CONSTRAINTS';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TABLE customers CASCADE CONSTRAINTS';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP SEQUENCE seq_transaction';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP SEQUENCE seq_account';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP SEQUENCE seq_customer';
+EXCEPTION WHEN OTHERS THEN NULL;
 END;
 /

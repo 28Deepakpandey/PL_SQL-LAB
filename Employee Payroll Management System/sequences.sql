@@ -1,0 +1,4 @@
+-- --SEQUENCE (for Salary ID)
+CREATE SEQUENCE salary_seq
+START WITH 1
+INCREMENT BY 1;
